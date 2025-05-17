@@ -1,0 +1,35 @@
+-- GUI Setup (Draggable Frame)
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "MacroGui"
+gui.ResetOnSpawn = false
+
+local dragFrame = Instance.new("Frame", gui)
+dragFrame.Size = UDim2.new(0, 170, 0, 240)
+dragFrame.Position = UDim2.new(0, 10, 0, 10)
+dragFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+dragFrame.Active = true
+dragFrame.Draggable = true
+
+local uiCorner = Instance.new("UICorner", dragFrame)
+uiCorner.CornerRadius = UDim.new(0, 8)
+
+local function button(name, y, callback)
+	local b = Instance.new("TextButton", dragFrame)
+	b.Size = UDim2.new(0, 150, 0, 30)
+	b.Position = UDim2.new(0, 10, 0, y)
+	b.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	b.TextColor3 = Color3.new(1, 1, 1)
+	b.Text = name
+	b.Font = Enum.Font.SourceSans
+	b.TextSize = 18
+	b.MouseButton1Click:Connect(callback)
+	return b
+end
+
+local status = Instance.new("TextLabel", dragFrame)
+status.Size = UDim2.new(0, 150, 0, 24)
+status.Position = UDim2.new(0, 10, 0, 5)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.new(1, 1, 1)
+status.Text = "Macro Ready"
+status.TextXAlignment = Enum.TextXAlignment.Left
