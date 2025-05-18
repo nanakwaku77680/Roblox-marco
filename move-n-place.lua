@@ -1,82 +1,115 @@
+-- SERVICES
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local UIS = game:GetService("UserInputService")
+local root = character:WaitForChild("HumanoidRootPart")
 local runService = game:GetService("RunService")
 
+-- STATE
 local recording = false
 local replaying = false
 local movementLog = {}
 local unitPlacements = {}
 
--- Simulated unit placement (e.g., pressing "P")
-UIS.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if input.KeyCode == Enum.KeyCode.P and recording then
-		local pos = humanoidRootPart.Position
+-- GUI SETUP
+local gui = Instance.new("ScreenGui")
+gui.Name = "MovementRecorderGUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 300)
+frame.Position = UDim2.new(1, -240, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local uiList = Instance.new("UIListLayout")
+uiList.Padding = UDim.new(0, 10)
+uiList.FillDirection = Enum.FillDirection.Vertical
+uiList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+uiList.VerticalAlignment = Enum.VerticalAlignment.Top
+uiList.Parent = frame
+
+local function createButton(text)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -20, 0, 50)
+	btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextSize = 22
+	btn.Text = text
+	btn.AutoButtonColor = true
+	btn.Parent = frame
+	return btn
+end
+
+-- BUTTONS
+local startBtn = createButton("▶ Start Recording")
+local stopBtn = createButton("⏹ Stop Recording")
+local placeBtn = createButton("➕ Place Minion")
+local replayBtn = createButton("🔁 Replay Movement")
+
+-- FUNCTIONALITY
+startBtn.MouseButton1Click:Connect(function()
+	recording = true
+	movementLog = {}
+	unitPlacements = {}
+	print("Recording started.")
+end)
+
+stopBtn.MouseButton1Click:Connect(function()
+	recording = false
+	print("Recording stopped.")
+end)
+
+placeBtn.MouseButton1Click:Connect(function()
+	if recording then
+		local pos = root.Position
 		table.insert(unitPlacements, pos)
-		print("Placed unit at:", pos)
 
-		-- Simulate unit (a red part)
-		local part = Instance.new("Part")
-		part.Size = Vector3.new(2, 2, 2)
-		part.Position = pos
-		part.Anchored = true
-		part.BrickColor = BrickColor.Red()
-		part.Parent = workspace
+		-- Simulate "minion"
+		local minion = Instance.new("Part")
+		minion.Size = Vector3.new(2, 2, 2)
+		minion.Position = pos
+		minion.Anchored = true
+		minion.Shape = Enum.PartType.Ball
+		minion.Material = Enum.Material.Neon
+		minion.Color = Color3.fromRGB(255, 50, 50)
+		minion.Name = "Minion"
+		minion.Parent = workspace
 	end
 end)
 
--- Start recording with "R"
-UIS.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if input.KeyCode == Enum.KeyCode.R then
-		print("Started recording")
-		recording = true
-		movementLog = {}
-		unitPlacements = {}
-	end
-end)
-
--- Stop recording with "T"
-UIS.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if input.KeyCode == Enum.KeyCode.T then
-		print("Stopped recording")
-		recording = false
-	end
-end)
-
--- Start replay with "Y"
-UIS.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-	if input.KeyCode == Enum.KeyCode.Y then
-		if not replaying then
-			replaying = true
-			print("Replaying...")
-			for i, pos in ipairs(movementLog) do
-				humanoidRootPart.CFrame = CFrame.new(pos)
-				task.wait(0.05)
-			end
-
-			for _, pos in ipairs(unitPlacements) do
-				local part = Instance.new("Part")
-				part.Size = Vector3.new(2, 2, 2)
-				part.Position = pos
-				part.Anchored = true
-				part.BrickColor = BrickColor.Green()
-				part.Parent = workspace
-			end
-
-			print("Replay finished")
-			replaying = false
+replayBtn.MouseButton1Click:Connect(function()
+	if not replaying then
+		replaying = true
+		print("Replaying movement...")
+		for _, pos in ipairs(movementLog) do
+			root.CFrame = CFrame.new(pos)
+			task.wait(0.05)
 		end
+
+		print("Replaying minion placements...")
+		for _, pos in ipairs(unitPlacements) do
+			local clone = Instance.new("Part")
+			clone.Size = Vector3.new(2, 2, 2)
+			clone.Position = pos
+			clone.Anchored = true
+			clone.Shape = Enum.PartType.Ball
+			clone.Material = Enum.Material.Neon
+			clone.Color = Color3.fromRGB(50, 255, 50)
+			clone.Name = "MinionClone"
+			clone.Parent = workspace
+		end
+
+		print("Replay complete.")
+		replaying = false
 	end
 end)
 
--- Record movement every frame
+-- RECORD MOVEMENT EVERY FRAME
 runService.RenderStepped:Connect(function()
 	if recording then
-		table.insert(movementLog, humanoidRootPart.Position)
+		table.insert(movementLog, root.Position)
 	end
 end)
