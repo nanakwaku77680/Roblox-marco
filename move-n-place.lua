@@ -1,166 +1,124 @@
--- Anime Fantasy Movement & Unit Recorder GUI (Toggleable)
--- Made by BatmanOg
+-- Universal Hitbox Expander GUI (Movable)
+-- Made by Batman Your Homie
 
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local workspace = game:GetService("Workspace")
+local char = player.Character or player.CharacterAdded:Wait()
+local root = char:WaitForChild("HumanoidRootPart")
 
--- Data
-local recording = false
-local movementData = {}
-local unitLog = {}
+local hitboxes = {}
+local playerHitbox
+local expanded = false
 
--- GUI Setup
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "BatmanOgRecorderGUI"
+-- Function to attach hitbox to NPC/mob
+local function attachHitbox(npc)
+    if hitboxes[npc] then return end
+    local npcRoot = npc:FindFirstChild("HumanoidRootPart")
+    if not npcRoot then return end
 
--- Toggle Button
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 100, 0, 30)
-toggleBtn.Position = UDim2.new(0, 20, 0, 20)
-toggleBtn.Text = "Toggle GUI"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 14
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+    local hitbox = Instance.new("Part")
+    hitbox.Size = Vector3.new(4,4,4)
+    hitbox.Transparency = 0.5
+    hitbox.Anchored = false
+    hitbox.CanCollide = false
+    hitbox.Name = npc.Name.."_Hitbox"
+    hitbox.Parent = workspace
 
--- Main Frame
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 200, 0, 0)
-frame.Position = UDim2.new(0, 140, 0, 20)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.Visible = false
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = npcRoot
+    weld.Part1 = hitbox
+    weld.Parent = hitbox
 
--- Credit Label
-local credit = Instance.new("TextLabel", frame)
-credit.Size = UDim2.new(0, 200, 0, 20)
-credit.Position = UDim2.new(0, 0, 1, -20)
-credit.BackgroundTransparency = 1
-credit.Text = "Made by BatmanOg"
-credit.TextColor3 = Color3.fromRGB(200, 200, 200)
-credit.TextSize = 14
-credit.Font = Enum.Font.Gotham
+    hitbox.Touched:Connect(function(part)
+        local hum = part.Parent:FindFirstChild("Humanoid")
+        if hum then
+            print("NPC Hitbox touched by:", hum.Parent.Name)
+        end
+    end)
 
--- Toggle behavior
-local isOpen = false
-toggleBtn.MouseButton1Click:Connect(function()
-	if isOpen then
-		TweenService:Create(frame, TweenInfo.new(0.4), {
-			Size = UDim2.new(0, 200, 0, 0)
-		}):Play()
-		task.wait(0.4)
-		frame.Visible = false
-	else
-		frame.Visible = true
-		TweenService:Create(frame, TweenInfo.new(0.4), {
-			Size = UDim2.new(0, 200, 0, 220)
-		}):Play()
-	end
-	isOpen = not isOpen
-end)
-
--- Create button helper
-local function createButton(text, posY)
-	local btn = Instance.new("TextButton", frame)
-	btn.Size = UDim2.new(0, 180, 0, 30)
-	btn.Position = UDim2.new(0, 10, 0, posY)
-	btn.Text = text
-	btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 14
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-	return btn
+    hitboxes[npc] = hitbox
 end
 
--- Buttons
-local startBtn = createButton("Start Recording", 0.05)
-local stopBtn = createButton("Stop Recording", 0.25)
-local playBtn = createButton("Play Replay", 0.45)
-local clearBtn = createButton("Clear", 0.65)
+-- Attach to existing NPCs
+for _, npc in ipairs(workspace:GetChildren()) do
+    if npc:FindFirstChild("Humanoid") then
+        attachHitbox(npc)
+    end
+end
 
--- Unit Placement Tracking
-local unitFolder = workspace:FindFirstChild("Units") or workspace
-local unitConnection
-
-unitConnection = unitFolder.ChildAdded:Connect(function(child)
-	if recording and child:IsA("Model") and not child:IsDescendantOf(character) then
-		task.wait(0.1)
-		local root = child:FindFirstChild("HumanoidRootPart") or child:FindFirstChildWhichIsA("BasePart")
-		if root then
-			table.insert(unitLog, {
-				time = tick(),
-				name = child.Name,
-				cframe = root.CFrame
-			})
-		end
-	end
+-- Attach to new NPCs
+workspace.ChildAdded:Connect(function(child)
+    if child:FindFirstChild("Humanoid") then
+        attachHitbox(child)
+    end
 end)
 
--- Start Recording
-startBtn.MouseButton1Click:Connect(function()
-	if recording then return end
-	movementData = {}
-	unitLog = {}
-	recording = true
-	startBtn.Text = "Recording..."
+-- Create player hitbox
+playerHitbox = Instance.new("Part")
+playerHitbox.Size = root.Size
+playerHitbox.Transparency = 0.5
+playerHitbox.Anchored = false
+playerHitbox.CanCollide = false
+playerHitbox.Name = "PlayerHitbox"
+playerHitbox.Parent = workspace
 
-	coroutine.wrap(function()
-		while recording do
-			table.insert(movementData, {
-				tick = tick(),
-				cframe = humanoidRootPart.CFrame
-			})
-			wait(0.2)
-		end
-	end)()
-end)
+local playerWeld = Instance.new("WeldConstraint")
+playerWeld.Part0 = root
+playerWeld.Part1 = playerHitbox
+playerWeld.Parent = playerHitbox
 
--- Stop Recording
-stopBtn.MouseButton1Click:Connect(function()
-	recording = false
-	startBtn.Text = "Start Recording"
-end)
+-- Create GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "UniversalHitboxGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Replay
-playBtn.MouseButton1Click:Connect(function()
-	if #movementData < 2 then return end
-	local startTime = movementData[1].tick
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 100)
+frame.Position = UDim2.new(0,20,0,20)
+frame.BackgroundColor3 = Color3.fromRGB(35,35,35)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+frame.Active = true
+frame.Draggable = true  -- ✅ Makes the GUI movable
 
-	-- Replay movement
-	for _, data in ipairs(movementData) do
-		local delayTime = data.tick - startTime
-		task.delay(delayTime, function()
-			humanoidRootPart.CFrame = data.cframe
-		end)
-	end
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "Hitbox Expander"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.Parent = frame
 
-	-- Replay units (dummy)
-	for _, unit in ipairs(unitLog) do
-		local delay = unit.time - startTime
-		task.delay(delay, function()
-			local fakeUnit = Instance.new("Part")
-			fakeUnit.Name = unit.name .. "_Replay"
-			fakeUnit.Size = Vector3.new(2, 2, 2)
-			fakeUnit.Anchored = true
-			fakeUnit.CFrame = unit.cframe
-			fakeUnit.Color = Color3.fromRGB(255, 200, 100)
-			fakeUnit.Material = Enum.Material.Neon
-			fakeUnit.CanCollide = false
-			fakeUnit.Parent = workspace
-		end)
-	end
-end)
+local sub = Instance.new("TextLabel")
+sub.Size = UDim2.new(1,0,0,20)
+sub.Position = UDim2.new(0,0,0,30)
+sub.BackgroundTransparency = 1
+sub.Text = "Made by Batman Your Homie"
+sub.TextColor3 = Color3.fromRGB(200,200,200)
+sub.Font = Enum.Font.SourceSans
+sub.TextSize = 14
+sub.Parent = frame
 
--- Clear Data
-clearBtn.MouseButton1Click:Connect(function()
-	movementData = {}
-	unitLog = {}
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0,200,0,30)
+button.Position = UDim2.new(0,10,0,60)
+button.BackgroundColor3 = Color3.fromRGB(70,70,70)
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.Text = "Toggle Hitboxes"
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 16
+button.Parent = frame
+
+-- Toggle function
+button.MouseButton1Click:Connect(function()
+    expanded = not expanded
+    -- Toggle NPCs
+    for _, hitbox in pairs(hitboxes) do
+        hitbox.Size = expanded and Vector3.new(8,8,8) or Vector3.new(4,4,4)
+    end
+    -- Toggle player hitbox 3x normal
+    playerHitbox.Size = expanded and root.Size * 3 or root.Size
+    print("📦 All hitboxes "..(expanded and "expanded" or "reset"))
 end)
